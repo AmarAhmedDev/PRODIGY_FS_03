@@ -226,7 +226,7 @@ function EditProductPage() {
               Modify the details for your product.
             </p>
           </div>
-          <Link to={`/products/${productId}`}>
+          <Link to="/products/$productId" params={{ productId }}>
             <Button variant="outline" className="rounded-full">Cancel</Button>
           </Link>
         </div>
