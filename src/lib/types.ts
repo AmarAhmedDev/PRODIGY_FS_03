@@ -9,6 +9,7 @@ export interface Product {
   stock: number;
   rating?: number;
   createdAt?: number;
+  userId?: string;
 }
 
 export interface CartItem {

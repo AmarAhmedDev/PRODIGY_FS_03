@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db, uploadToCloudinary } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
@@ -11,11 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Upload, ImagePlus, CheckCircle2 } from "lucide-react";
+import { Loader2, Upload, ImagePlus } from "lucide-react";
 
-export const Route = createFileRoute("/admin")({
-  component: AdminPage,
-  head: () => ({ meta: [{ title: "Admin — Add Product — PioMart" }] }),
+export const Route = createFileRoute("/edit/$productId")({
+  component: EditProductPage,
+  head: () => ({ meta: [{ title: "Edit Product — PioMart" }] }),
 });
 
 const schema = z.object({
@@ -43,7 +43,8 @@ const CATEGORIES = [
   "Toys",
 ];
 
-function AdminPage() {
+function EditProductPage() {
+  const { productId } = Route.useParams();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -54,19 +55,68 @@ function AdminPage() {
     price: "",
     oldPrice: "",
     category: CATEGORIES[0],
-    stock: "10",
+    stock: "",
   });
   const [errors, setErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
+  
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const [loadingInitial, setLoadingInitial] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate({ to: "/login", search: { redirect: "/admin" } });
-  }, [authLoading, user, navigate]);
+    if (!authLoading && !user) {
+      navigate({ to: "/login", search: { redirect: `/edit/${productId}` } });
+    }
+  }, [authLoading, user, navigate, productId]);
+
+  useEffect(() => {
+    if (authLoading || !user) return;
+
+    let mounted = true;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, "products", productId));
+        if (!snap.exists()) {
+          toast.error("Product not found");
+          if (mounted) navigate({ to: "/products" });
+          return;
+        }
+
+        const data = snap.data();
+        
+        // Security check: Must be owner
+        if (data.userId !== user.uid) {
+          toast.error("You don't have permission to edit this product");
+          if (mounted) navigate({ to: "/products" });
+          return;
+        }
+
+        if (mounted) {
+          setForm({
+            name: data.name || "",
+            description: data.description || "",
+            price: data.price ? String(data.price) : "",
+            oldPrice: data.oldPrice ? String(data.oldPrice) : "",
+            category: data.category || CATEGORIES[0],
+            stock: data.stock !== undefined ? String(data.stock) : "",
+          });
+          setImagePreview(data.imageUrl || null);
+          setImageUrl(data.imageUrl || null);
+          setLoadingInitial(false);
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error("Failed to load product");
+        if (mounted) navigate({ to: "/products" });
+      }
+    })();
+
+    return () => { mounted = false; };
+  }, [productId, authLoading, user, navigate]);
 
   const onPickImage = (file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -78,7 +128,6 @@ function AdminPage() {
       return;
     }
     setImageFile(file);
-    setImageUrl(null);
     setImagePreview(URL.createObjectURL(file));
   };
 
@@ -119,7 +168,7 @@ function AdminPage() {
 
     let finalImageUrl = imageUrl;
     try {
-      if (!finalImageUrl && imageFile) {
+      if (imageFile && finalImageUrl !== imagePreview) {
         setUploading(true);
         finalImageUrl = await uploadToCloudinary(imageFile);
         setImageUrl(finalImageUrl);
@@ -139,40 +188,26 @@ function AdminPage() {
 
     setSubmitting(true);
     try {
-      const ref = await addDoc(collection(db, "products"), {
+      await updateDoc(doc(db, "products", productId), {
         name: parsed.data.name,
         description: parsed.data.description,
         price: parsed.data.price,
-        ...(parsed.data.oldPrice ? { oldPrice: parsed.data.oldPrice } : {}),
+        ...(parsed.data.oldPrice ? { oldPrice: parsed.data.oldPrice } : { oldPrice: null }), // Clear oldPrice if empty
         category: parsed.data.category,
         stock: parsed.data.stock,
         imageUrl: finalImageUrl,
-        rating: 4.5,
-        createdAt: serverTimestamp(),
-        userId: user!.uid,
       });
-      setSavedId(ref.id);
-      toast.success("Product added");
-      setForm({
-        name: "",
-        description: "",
-        price: "",
-        oldPrice: "",
-        category: CATEGORIES[0],
-        stock: "10",
-      });
-      setImageFile(null);
-      setImagePreview(null);
-      setImageUrl(null);
+      toast.success("Product updated successfully");
+      navigate({ to: `/products/${productId}` });
     } catch (err) {
       console.error(err);
-      toast.error("Could not save product. Check Firestore rules.");
+      toast.error("Could not update product. Check Firestore rules.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (authLoading || !user) {
+  if (authLoading || !user || loadingInitial) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -186,25 +221,15 @@ function AdminPage() {
       <div className="mx-auto max-w-5xl px-4 py-10 md:px-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Add a Product</h1>
+            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Edit Product</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Upload an image to Cloudinary and store the product in Firestore.
+              Modify the details for your product.
             </p>
           </div>
-          <Link to="/products">
-            <Button variant="outline" className="rounded-full">View shop</Button>
+          <Link to={`/products/${productId}`}>
+            <Button variant="outline" className="rounded-full">Cancel</Button>
           </Link>
         </div>
-
-        {savedId && (
-          <div className="mt-6 flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm text-foreground">
-            <CheckCircle2 className="h-5 w-5 text-primary" />
-            <span>
-              Product saved (ID <span className="font-mono">{savedId.slice(0, 8)}</span>). Add another below or go to the{" "}
-              <Link to="/products" className="font-semibold text-primary underline">shop</Link>.
-            </span>
-          </div>
-        )}
 
         <form onSubmit={onSubmit} className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
           <div className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
@@ -292,10 +317,15 @@ function AdminPage() {
 
             <div
               onClick={() => fileRef.current?.click()}
-              className="flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/40 transition-colors hover:border-primary hover:bg-muted"
+              className="group relative flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/40 transition-colors hover:border-primary hover:bg-muted"
             >
               {imagePreview ? (
-                <img src={imagePreview} alt="Preview" className="h-full w-full object-cover" />
+                <>
+                  <img src={imagePreview} alt="Preview" className="h-full w-full object-cover transition-opacity group-hover:opacity-50" />
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
+                    <p className="font-semibold text-foreground bg-background/80 px-3 py-1 rounded-full text-sm shadow-sm">Change Image</p>
+                  </div>
+                </>
               ) : (
                 <div className="flex flex-col items-center text-center text-muted-foreground">
                   <ImagePlus className="mb-2 h-8 w-8" />
@@ -317,25 +347,21 @@ function AdminPage() {
               }}
             />
 
-            <Button
-              type="button"
-              onClick={doUpload}
-              disabled={!imageFile || uploading || !!imageUrl}
-              variant="outline"
-              className="w-full rounded-full"
-            >
-              {uploading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="mr-2 h-4 w-4" />
-              )}
-              {imageUrl ? "Uploaded ✓" : uploading ? "Uploading..." : "Upload to Cloudinary"}
-            </Button>
-
-            {imageUrl && (
-              <p className="break-all rounded-lg bg-muted p-2 text-[10px] text-muted-foreground">
-                {imageUrl}
-              </p>
+            {imageFile && (
+              <Button
+                type="button"
+                onClick={doUpload}
+                disabled={uploading}
+                variant="outline"
+                className="w-full rounded-full"
+              >
+                {uploading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                {uploading ? "Uploading..." : "Upload new image"}
+              </Button>
             )}
 
             <Button
@@ -344,11 +370,8 @@ function AdminPage() {
               size="lg"
               disabled={submitting || uploading}
             >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save product"}
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save changes"}
             </Button>
-            <p className="text-xs text-muted-foreground">
-              The image uploads automatically when you save if you haven't already uploaded it.
-            </p>
           </aside>
         </form>
       </div>

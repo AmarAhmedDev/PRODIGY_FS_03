@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ensureSeeded } from "@/lib/products";
 import type { Product } from "@/lib/types";
@@ -8,7 +8,8 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
-import { Star, Minus, Plus, ShoppingBag, ChevronLeft, Truck, ShieldCheck } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Star, Minus, Plus, ShoppingBag, ChevronLeft, Truck, ShieldCheck, Edit2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/products/$productId")({
@@ -47,6 +48,8 @@ export const Route = createFileRoute("/products/$productId")({
 
 function ProductDetailPage() {
   const { productId } = Route.useParams();
+  const navigate = useRouter().navigate;
+  const { user } = useAuth();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
@@ -109,6 +112,18 @@ function ProductDetailPage() {
     toast.success(`Added ${qty} × ${product.name} to cart`);
   };
 
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this product?")) return;
+    try {
+      await deleteDoc(doc(db, "products", productId));
+      toast.success("Product deleted successfully");
+      navigate({ to: "/products" });
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to delete product");
+    }
+  };
+
   const discount = product.oldPrice
     ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
     : 0;
@@ -117,9 +132,24 @@ function ProductDetailPage() {
     <div className="min-h-screen bg-muted/20 pb-24 lg:pb-0">
       <Navbar />
       <div className="mx-auto w-full max-w-[1400px] px-4 py-6 md:px-8 lg:px-12 lg:py-10">
-        <Link to="/products" className="group mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
-          <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> Back to shop
-        </Link>
+        <div className="mb-6 flex items-center justify-between">
+          <Link to="/products" className="group inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
+            <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> Back to shop
+          </Link>
+          
+          {user?.uid === product.userId && (
+            <div className="flex items-center gap-2">
+              <Link to="/edit/$productId" params={{ productId }}>
+                <Button variant="outline" size="sm" className="rounded-full">
+                  <Edit2 className="mr-1.5 h-4 w-4" /> Edit
+                </Button>
+              </Link>
+              <Button variant="destructive" size="sm" className="rounded-full" onClick={handleDelete}>
+                <Trash2 className="mr-1.5 h-4 w-4" /> Delete
+              </Button>
+            </div>
+          )}
+        </div>
 
         <div className="grid gap-8 md:grid-cols-[1fr_400px] lg:grid-cols-[1.2fr_1fr] lg:gap-16">
           {/* Image Section */}

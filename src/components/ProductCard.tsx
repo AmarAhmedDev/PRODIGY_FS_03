@@ -1,17 +1,34 @@
 import { Link } from "@tanstack/react-router";
-import { Star, ShoppingBag } from "lucide-react";
+import { Star, ShoppingBag, Edit2, Trash2 } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { deleteDoc, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export function ProductCard({ product }: { product: Product }) {
   const { addItem } = useCart();
+  const { user } = useAuth();
 
   const onAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     addItem(product, 1);
     toast.success(`${product.name} added to cart`);
+  };
+
+  const onDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this product?")) return;
+    try {
+      await deleteDoc(doc(db, "products", product.id));
+      toast.success("Product deleted successfully");
+      window.location.reload();
+    } catch (err) {
+      toast.error("Failed to delete product");
+    }
   };
 
   const discount = product.oldPrice
@@ -29,6 +46,24 @@ export function ProductCard({ product }: { product: Product }) {
           <span className="absolute left-0 top-0 z-10 rounded-br-lg bg-[#f5365c] px-2 py-0.5 text-[10px] font-bold text-white">
             -{discount}%
           </span>
+        )}
+        {user?.uid === product.userId && (
+          <div className="absolute top-2 right-2 z-20 flex flex-col gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+            <Link
+              to="/edit/$productId"
+              params={{ productId: product.id }}
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-blue-600 shadow hover:bg-blue-50"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+            </Link>
+            <button
+              onClick={onDelete}
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-red-600 shadow hover:bg-red-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
         )}
         <img
           src={product.imageUrl}
