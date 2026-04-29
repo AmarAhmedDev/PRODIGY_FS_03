@@ -170,13 +170,13 @@ function HomePage() {
           </Link>
         </div>
         {loading ? (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-muted/80" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
             {featured.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}

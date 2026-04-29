@@ -30,7 +30,7 @@ function ProductsPage() {
   const { products, loading } = useProducts();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string | undefined>(initialCategory);
-  const [sort, setSort] = useState<"popular" | "price-asc" | "price-desc">("popular");
+  const [sort, setSort] = useState<"newest" | "popular" | "price-asc" | "price-desc">("newest");
   const [maxPrice, setMaxPrice] = useState<number | "">("");
 
   const categories = useMemo(
@@ -51,7 +51,8 @@ function ProductsPage() {
     arr = [...arr];
     if (sort === "price-asc") arr.sort((a, b) => a.price - b.price);
     else if (sort === "price-desc") arr.sort((a, b) => b.price - a.price);
-    else arr.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    else if (sort === "popular") arr.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    // if newest, it's already sorted by newest from fetchProducts
     return arr;
   }, [products, category, search, sort, maxPrice]);
 
@@ -121,6 +122,7 @@ function ProductsPage() {
                 onChange={(e) => setSort(e.target.value as typeof sort)}
                 className="w-full rounded-xl border border-border/50 bg-background px-3.5 py-2.5 text-sm transition-colors focus:border-primary/50"
               >
+                <option value="newest">Newest arrivals</option>
                 <option value="popular">Most popular</option>
                 <option value="price-asc">Price: low to high</option>
                 <option value="price-desc">Price: high to low</option>
@@ -145,7 +147,7 @@ function ProductsPage() {
 
           <main>
             {loading ? (
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {Array.from({ length: 12 }).map((_, i) => (
                   <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-muted/80" />
                 ))}
@@ -155,7 +157,7 @@ function ProductsPage() {
                 <p className="text-sm text-muted-foreground/80">No products match your filters.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {filtered.map((p) => (
                   <ProductCard key={p.id} product={p} />
                 ))}

@@ -109,97 +109,158 @@ function ProductDetailPage() {
     toast.success(`Added ${qty} × ${product.name} to cart`);
   };
 
+  const discount = product.oldPrice
+    ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
+    : 0;
+
   return (
-    <div className="min-h-screen bg-[var(--gradient-hero)]">
+    <div className="min-h-screen bg-muted/20 pb-24 lg:pb-0">
       <Navbar />
-      <div className="mx-auto max-w-6xl px-4 py-10 md:px-6">
-        <Link to="/products" className="group mb-8 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+      <div className="mx-auto w-full max-w-[1400px] px-4 py-6 md:px-8 lg:px-12 lg:py-10">
+        <Link to="/products" className="group mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
           <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> Back to shop
         </Link>
 
-        <div className="grid gap-12 md:grid-cols-2">
-          <div className="relative p-4">
-            <div className="overflow-hidden rounded-2xl bg-white p-6 shadow-[var(--shadow-lg)]">
-              <div className="mx-auto aspect-square w-[85%] overflow-hidden rounded-xl bg-muted/50">
-                <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover transition-transform duration-500 hover:scale-105" />
+        <div className="grid gap-8 md:grid-cols-[1fr_400px] lg:grid-cols-[1.2fr_1fr] lg:gap-16">
+          {/* Image Section */}
+          <div className="relative flex flex-col items-center justify-center overflow-hidden rounded-2xl bg-white p-4 shadow-sm border border-border/40">
+            <div className="relative aspect-[4/3] w-full overflow-hidden sm:aspect-square">
+              <img 
+                src={product.imageUrl} 
+                alt={product.name} 
+                className="h-full w-full object-contain transition-transform duration-500 hover:scale-105 mix-blend-multiply" 
+              />
+            </div>
+            {/* Trust Badges under image */}
+            <div className="mt-8 grid w-full grid-cols-2 gap-4 border-t border-border/50 pt-6">
+              <div className="flex items-center gap-3 justify-center text-center">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-foreground">Secure Checkout</p>
+                  <p className="text-xs text-muted-foreground">Protected by Stripe</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 justify-center text-center">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                  <Truck className="h-5 w-5" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-foreground">Free Shipping</p>
+                  <p className="text-xs text-muted-foreground">On all orders over $50</p>
+                </div>
               </div>
             </div>
           </div>
 
+          {/* Details Section */}
           <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
               {product.category}
             </span>
-            <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground md:text-4xl lg:text-5xl">{product.name}</h1>
-            <div className="mt-4 flex items-center gap-2">
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground md:text-3xl lg:text-4xl">{product.name}</h1>
+            
+            <div className="mt-4 flex items-center gap-3">
               <div className="flex items-center gap-0.5">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star
                     key={i}
-                    className={`h-4 w-4 ${i < Math.round(product.rating ?? 4.5) ? "fill-amber-400 text-amber-400" : "text-muted"}`}
+                    className={`h-4 w-4 ${i < Math.round(product.rating ?? 4.5) ? "fill-amber-400 text-amber-400" : "fill-muted text-muted"}`}
                   />
                 ))}
               </div>
-              <span className="text-sm text-muted-foreground">({product.rating?.toFixed(1) ?? "4.5"})</span>
+              <span className="text-sm font-medium text-foreground">{product.rating?.toFixed(1) ?? "4.5"}</span>
+              <span className="text-sm text-muted-foreground">· 1,284 Reviews</span>
             </div>
 
-            <div className="mt-8 flex items-baseline gap-3">
-              <span className="text-4xl font-bold text-foreground">${product.price.toFixed(2)}</span>
-              {product.oldPrice && (
-                <span className="text-lg text-muted-foreground/70 line-through">
-                  ${product.oldPrice.toFixed(2)}
-                </span>
+            <div className="mt-6 rounded-2xl bg-[#fff0f3] p-6 border border-[#ffe0e6]">
+              {discount > 0 && (
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="rounded bg-[#f5365c] px-2 py-0.5 text-xs font-bold uppercase text-white">Flash Sale</span>
+                  <span className="text-sm font-medium text-[#f5365c]">Ends in 12:45:00</span>
+                </div>
               )}
-            </div>
-
-            <p className="mt-6 leading-relaxed text-muted-foreground/80">{product.description}</p>
-
-            <div className="mt-8 flex items-center gap-4">
-              <div className="flex items-center rounded-full border border-border bg-card shadow-[var(--shadow-xs)]">
-                <button
-                  onClick={() => setQty((q) => Math.max(1, q - 1))}
-                  className="flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-muted"
-                  aria-label="Decrease quantity"
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <span className="w-10 text-center text-sm font-semibold">{qty}</span>
-                <button
-                  onClick={() => setQty((q) => Math.min(product.stock, q + 1))}
-                  className="flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-muted"
-                  aria-label="Increase quantity"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-              <Button
-                size="lg"
-                className="flex-1 rounded-full shadow-[var(--shadow-glow)] transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                onClick={handleAdd}
-                disabled={product.stock === 0}
-              >
-                <ShoppingBag className="mr-2 h-4 w-4" />
-                {product.stock === 0 ? "Out of stock" : "Add to cart"}
-              </Button>
-            </div>
-
-            <div className="mt-4 text-xs text-muted-foreground/70">
-              {product.stock > 0 ? `${product.stock} in stock` : "Currently unavailable"}
-            </div>
-
-            <div className="mt-10 grid grid-cols-2 gap-4 border-t border-border/50 pt-8">
-              <div className="flex items-center gap-3 rounded-xl bg-primary/5 p-3">
-                <Truck className="h-5 w-5 text-primary" />
-                <span className="text-sm font-medium">Free shipping over $50</span>
-              </div>
-              <div className="flex items-center gap-3 rounded-xl bg-primary/5 p-3">
-                <ShieldCheck className="h-5 w-5 text-primary" />
-                <span className="text-sm font-medium">Secure checkout</span>
+              <div className="flex items-baseline gap-3">
+                <span className="text-4xl font-black text-[#f5365c]">${product.price.toFixed(2)}</span>
+                {product.oldPrice && (
+                  <span className="text-lg font-medium text-muted-foreground/70 line-through">
+                    ${product.oldPrice.toFixed(2)}
+                  </span>
+                )}
+                {discount > 0 && (
+                  <span className="ml-2 text-sm font-bold text-[#f5365c]">-{discount}%</span>
+                )}
               </div>
             </div>
+
+            <div className="mt-8 space-y-4">
+              <h3 className="font-semibold text-foreground text-lg border-b pb-2">Description</h3>
+              <p className="leading-relaxed text-muted-foreground/90">{product.description}</p>
+            </div>
+
+            <div className="mt-8">
+              <div className="mb-4 flex items-center justify-between">
+                <span className="font-medium text-foreground">Quantity</span>
+                <span className="text-sm text-muted-foreground">
+                  {product.stock > 0 ? <span className="text-emerald-600 font-medium">{product.stock} in stock</span> : "Currently unavailable"}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-32 items-center justify-between rounded-xl border border-border bg-white px-2">
+                  <button
+                    onClick={() => setQty((q) => Math.max(1, q - 1))}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-muted"
+                    aria-label="Decrease quantity"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <span className="w-8 text-center font-semibold">{qty}</span>
+                  <button
+                    onClick={() => setQty((q) => Math.min(product.stock, q + 1))}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-muted"
+                    aria-label="Increase quantity"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+                
+                <div className="hidden lg:block flex-1">
+                  <Button
+                    size="lg"
+                    className="h-12 w-full rounded-xl bg-[#f5365c] hover:bg-[#d42a4c] text-white shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98] text-base font-bold"
+                    onClick={handleAdd}
+                    disabled={product.stock === 0}
+                  >
+                    <ShoppingBag className="mr-2 h-5 w-5" />
+                    {product.stock === 0 ? "Out of stock" : "Add to cart"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
+      
+      {/* Mobile Sticky Add to Cart */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between border-t border-border/50 bg-background/95 p-4 backdrop-blur-xl lg:hidden">
+        <div className="flex flex-col">
+          <span className="text-lg font-black text-[#f5365c]">${product.price.toFixed(2)}</span>
+          <span className="text-xs text-muted-foreground">{product.stock > 0 ? 'In stock' : 'Out of stock'}</span>
+        </div>
+        <Button
+          size="lg"
+          className="h-12 rounded-xl bg-[#f5365c] hover:bg-[#d42a4c] text-white shadow-lg px-8 text-base font-bold"
+          onClick={handleAdd}
+          disabled={product.stock === 0}
+        >
+          <ShoppingBag className="mr-2 h-5 w-5" />
+          Add to cart
+        </Button>
+      </div>
+
       <Footer />
     </div>
   );

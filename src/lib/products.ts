@@ -569,5 +569,14 @@ export async function ensureSeeded() {
 export async function fetchProducts(): Promise<Product[]> {
   await ensureSeeded();
   const snap = await getDocs(collection(db, "products"));
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Product, "id">) }));
+  return snap.docs
+    .map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        ...data,
+        createdAt: data.createdAt?.toMillis?.() || data.createdAt || 0,
+      } as Product;
+    })
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 }
