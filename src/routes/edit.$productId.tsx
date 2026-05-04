@@ -198,7 +198,7 @@ function EditProductPage() {
         imageUrl: finalImageUrl,
       });
       toast.success("Product updated successfully");
-      navigate({ to: `/products/${productId}` });
+      navigate({ to: "/products/$productId", params: { productId } });
     } catch (err) {
       console.error(err);
       toast.error("Could not update product. Check Firestore rules.");
